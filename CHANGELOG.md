@@ -17,6 +17,21 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## 1.3 — Stays connected in the background
+
+- **New: keeps your strap connected when the app is closed.** On Android, NOOP runs a quiet ongoing
+  foreground-service notification that holds the Bluetooth link open, so your heart rate keeps
+  streaming and offloads keep landing even after you swipe the app away. On macOS this already came
+  for free — close the window and NOOP keeps running from the menu bar.
+- **New: "Keep connected in the background" toggle** in Settings → Strap, on by default. Turn it off
+  and NOOP disconnects whenever you close the app (and drops the notification with it).
+- **Fixed:** the strap dropping the instant you closed the app (the connection used to be torn down
+  with the screen). The BLE client is now owned by the app process, not the UI.
+- **Fixed:** the Android notification permission is now actually declared and requested, so the
+  background notification can appear on Android 13+.
+
+---
+
 ## 1.2 — Readiness, and the start of WHOOP 5/MG
 
 - **New: Readiness.** A "should you push today?" card on Today that synthesizes established

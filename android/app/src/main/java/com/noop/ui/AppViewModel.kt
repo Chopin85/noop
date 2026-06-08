@@ -3,14 +3,14 @@ package com.noop.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.noop.NoopApplication
 import com.noop.analytics.IllnessWatch
 import com.noop.analytics.IntelligenceEngine
 import com.noop.analytics.UserProfile
 import com.noop.ble.LiveState
-import com.noop.ble.WhoopBleClient
+import com.noop.ble.WhoopConnectionService
 import com.noop.ble.WhoopModel
 import com.noop.data.DailyMetric
-import com.noop.data.WhoopDatabase
 import com.noop.data.WhoopRepository
 import com.noop.protocol.CommandNumber
 import kotlinx.coroutines.delay
@@ -31,13 +31,19 @@ import kotlinx.coroutines.launch
  */
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
-    // Offline store.
-    private val repository: WhoopRepository =
-        WhoopRepository(WhoopDatabase.get(app.applicationContext).whoopDao())
+    /** Process-wide context for prefs + the background-connection service. */
+    private val appContext = app.applicationContext
 
-    // BLE client — owns the GATT connection, emits LiveState, AND persists decoded live + historical
-    // streams into [repository] (shares the same process-wide DB).
-    val ble = WhoopBleClient(app.applicationContext, repository = repository)
+    /** The process owns the store + BLE client (see [NoopApplication]) so the connection can outlive
+     *  this Activity-scoped ViewModel and keep streaming under [WhoopConnectionService]. */
+    private val noopApp = app as NoopApplication
+
+    // Offline store — process-wide, shared with the background service.
+    private val repository: WhoopRepository = noopApp.repository
+
+    // BLE client — process-owned; emits LiveState and persists decoded live + historical streams
+    // into [repository] (same process-wide DB).
+    val ble = noopApp.ble
 
     val repo: WhoopRepository get() = repository
 
@@ -142,12 +148,37 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // MARK: - Strap controls (thin pass-throughs to the BLE client)
 
-    fun connect() = ble.connect(_selectedModel.value)
+    fun connect() {
+        ble.connect(_selectedModel.value)
+        // Keep the link alive when the app is closed, unless the user has opted out. Started from the
+        // foreground (this is a user tap), so Android 12+'s background-start rule is satisfied.
+        if (NoopPrefs.backgroundConnection(appContext)) {
+            WhoopConnectionService.start(appContext)
+        }
+    }
 
     fun disconnect() {
+        // User asked to disconnect: drop the foreground promotion first, then the link itself.
+        WhoopConnectionService.stop(appContext)
         ble.disconnect()
         hrWindow.clear()
         _bpm.value = null
+    }
+
+    /**
+     * Flip the "keep connected in the background" preference (driven by Settings). Turning it on
+     * while a strap is live promotes to the foreground immediately; turning it off drops the
+     * foreground service (the connection stays up until the app is actually closed).
+     */
+    fun setBackgroundConnection(enabled: Boolean) {
+        NoopPrefs.setBackgroundConnection(appContext, enabled)
+        if (enabled) {
+            if (ble.state.value.connected || ble.state.value.bonded) {
+                WhoopConnectionService.start(appContext)
+            }
+        } else {
+            WhoopConnectionService.stop(appContext)
+        }
     }
 
     /** Toggle the strap's real-time HR stream on. */
@@ -164,8 +195,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         super.onCleared()
-        ble.disconnect()
-        ble.shutdown()   // release the BLE client's background persistence scope
+        // The BLE client is process-owned (NoopApplication) and may be held up by
+        // WhoopConnectionService, so we never shut it down here. Only drop the connection when the
+        // user hasn't opted into background streaming — otherwise closing the UI would defeat the
+        // foreground service. (We deliberately do NOT call ble.shutdown(): the client outlives the
+        // ViewModel and is reused by the next Activity.)
+        if (!NoopPrefs.backgroundConnection(appContext)) {
+            ble.disconnect()
+        }
     }
 
     private companion object {

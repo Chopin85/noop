@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "1.2"
+    const val CURRENT_VERSION = "1.3"
 
     data class Release(
         val version: String,
@@ -36,6 +36,16 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "1.3",
+            title = "Stays connected in the background",
+            date = "June 2026",
+            items = listOf(
+                "NOOP now keeps your strap connected when the app is closed. On Android it shows a quiet ongoing notification and keeps streaming your heart rate; on Mac, just close the window and NOOP keeps running from the menu bar.",
+                "New “Keep connected in the background” toggle in Settings → Strap (on by default). Turn it off and NOOP disconnects whenever you close the app.",
+                "Fixed the strap dropping the moment you closed the app, and made sure the notification permission is actually requested.",
+            ),
+        ),
         Release(
             version = "1.2",
             title = "Readiness, and the start of WHOOP 5/MG",

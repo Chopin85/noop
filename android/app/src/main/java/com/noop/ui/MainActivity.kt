@@ -105,8 +105,19 @@ object NoopPrefs {
     const val KEY_ONBOARDED = "noop.onboarded"
     const val KEY_LAST_SEEN_CHANGELOG = "noop.lastSeenChangelogVersion"
 
+    /** "Keep connected in the background" — drives [com.noop.ble.WhoopConnectionService]. Default on. */
+    const val KEY_BACKGROUND_CONNECTION = "noop.backgroundConnection"
+
     fun of(context: Context): SharedPreferences =
         context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
+
+    /** Whether NOOP should hold the strap connection open via a foreground service. Default true. */
+    fun backgroundConnection(context: Context): Boolean =
+        of(context).getBoolean(KEY_BACKGROUND_CONNECTION, true)
+
+    fun setBackgroundConnection(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_BACKGROUND_CONNECTION, enabled).apply()
+    }
 }
 
 /**

@@ -175,6 +175,10 @@ fun SettingsScreen(vm: AppViewModel) {
     val puffinExperiment = remember { PuffinExperiment.from(context) }
     var puffinExperiments by remember { mutableStateOf(puffinExperiment.isEnabled) }
 
+    // "Keep connected in the background" — drives WhoopConnectionService (foreground service). Default
+    // on. SharedPreferences isn't reactive, so the Switch mirrors into a local state.
+    var backgroundConnection by remember { mutableStateOf(NoopPrefs.backgroundConnection(context)) }
+
     // SAF launchers — CreateDocument for export, OpenDocument for import.
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -347,6 +351,41 @@ fun SettingsScreen(vm: AppViewModel) {
                         enabled = live.connected || live.bonded,
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Palette.statusCritical),
                     ) { Text("Disconnect", style = NoopType.captionNumber) }
+                }
+
+                // Keep streaming when the app is closed (Android foreground service). On Mac, NOOP
+                // already keeps your strap connected from the menu bar — just close the window.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Keep connected in the background",
+                            style = NoopType.subhead,
+                            color = Palette.textPrimary,
+                        )
+                        Text(
+                            "Keeps streaming from your strap with an ongoing notification, even after you close NOOP. Turn off to disconnect when the app is closed.",
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
+                    Switch(
+                        checked = backgroundConnection,
+                        onCheckedChange = {
+                            backgroundConnection = it
+                            vm.setBackgroundConnection(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                    )
                 }
             }
         }

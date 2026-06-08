@@ -41,6 +41,10 @@
         android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
         tools:targetApi="34" />
 
+    <!-- Android 13+ (API 33+): the ongoing "strap connected" notification is user-dismissable and
+         must be granted at runtime. Requested in MainActivity alongside the BLE permissions. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- BLE is mandatory hardware for this app. -->
     <uses-feature
         android:name="android.hardware.bluetooth_le"
@@ -107,6 +111,14 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
+
+        <!-- Keeps the WHOOP connection alive while the app is backgrounded or closed. Not exported;
+             started/stopped only from within the app, gated by the "Keep connected in the
+             background" Settings toggle. -->
+        <service
+            android:name="com.noop.ble.WhoopConnectionService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
     </application>
 
